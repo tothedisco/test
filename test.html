@@ -1,0 +1,163 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>핀볼 추첨기</title>
+    <style>
+      body {
+        margin: 0;
+        overflow: hidden;
+        background: #222;
+      }
+      canvas {
+        display: block;
+      }
+      #result {
+        position: absolute;
+        top: 20px;
+        left: 50%;
+        transform: translateX(-50%);
+        font-size: 24px;
+        color: #fff;
+        background: rgba(0, 0, 0, 0.6);
+        padding: 10px 20px;
+        border-radius: 10px;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="result">핀볼 추첨기 🎯</div>
+    <canvas id="pinball"></canvas>
+
+    <script>
+      const canvas = document.getElementById("pinball");
+      const ctx = canvas.getContext("2d");
+      canvas.width = window.innerWidth;
+      canvas.height = window.innerHeight;
+
+      const gravity = 0.4;
+      const friction = 0.98;
+
+      const pegs = [];
+      const results = ["🍎", "🍌", "🍇", "🍒", "🍍", "🍊"];
+      const resultZones = [];
+
+      function createPegs() {
+        const spacing = 80;
+        for (let y = 100; y < canvas.height - 200; y += spacing) {
+          for (let x = 0; x < canvas.width; x += spacing) {
+            const offset = y % (spacing * 2) === 0 ? spacing / 2 : 0;
+            pegs.push({ x: x + offset, y });
+          }
+        }
+      }
+
+      function createResultZones() {
+        const width = canvas.width / results.length;
+        for (let i = 0; i < results.length; i++) {
+          resultZones.push({
+            x: i * width,
+            width,
+            label: results[i],
+          });
+        }
+      }
+
+      class Ball {
+        constructor() {
+          this.x = canvas.width / 2;
+          this.y = 20;
+          this.vx = (Math.random() - 0.5) * 5;
+          this.vy = 2;
+          this.radius = 10;
+          this.stopped = false;
+        }
+
+        update() {
+          if (this.stopped) return;
+
+          this.vy += gravity;
+          this.x += this.vx;
+          this.y += this.vy;
+
+          // 벽 충돌
+          if (this.x < this.radius || this.x > canvas.width - this.radius) {
+            this.vx *= -friction;
+          }
+
+          // 바닥
+          if (this.y > canvas.height - 20) {
+            this.stopped = true;
+            for (let zone of resultZones) {
+              if (this.x >= zone.x && this.x <= zone.x + zone.width) {
+                document.getElementById("result").innerText =
+                  `🎉 결과: ${zone.label}`;
+                break;
+              }
+            }
+          }
+
+          // Peg 충돌
+          for (let peg of pegs) {
+            const dx = this.x - peg.x;
+            const dy = this.y - peg.y;
+            const dist = Math.sqrt(dx * dx + dy * dy);
+            if (dist < this.radius + 5) {
+              const angle = Math.atan2(dy, dx);
+              const speed =
+                Math.sqrt(this.vx * this.vx + this.vy * this.vy) * friction;
+              this.vx = Math.cos(angle) * speed;
+              this.vy = Math.sin(angle) * speed;
+            }
+          }
+        }
+
+        draw() {
+          ctx.beginPath();
+          ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
+          ctx.fillStyle = "#f0f";
+          ctx.fill();
+          ctx.closePath();
+        }
+      }
+
+      const ball = new Ball();
+      createPegs();
+      createResultZones();
+
+      function animate() {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+        // Draw result zones
+        for (let zone of resultZones) {
+          ctx.fillStyle = "#444";
+          ctx.fillRect(zone.x, canvas.height - 100, zone.width, 100);
+          ctx.fillStyle = "#fff";
+          ctx.font = "24px sans-serif";
+          ctx.fillText(
+            zone.label,
+            zone.x + zone.width / 2 - 12,
+            canvas.height - 50,
+          );
+        }
+
+        // Draw pegs
+        for (let peg of pegs) {
+          ctx.beginPath();
+          ctx.arc(peg.x, peg.y, 5, 0, Math.PI * 2);
+          ctx.fillStyle = "#0ff";
+          ctx.fill();
+          ctx.closePath();
+        }
+
+        ball.update();
+        ball.draw();
+
+        requestAnimationFrame(animate);
+      }
+
+      animate();
+    </script>
+  </body>
+</html>
